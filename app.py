@@ -29,7 +29,7 @@ st.markdown("""
 
 # ------------------ SIDEBAR ------------------ #
 with st.sidebar:
-    st.title("🎓 EduAI")
+    st.title("EduAI")
     st.markdown("### Multi-Agent Education System")
     st.markdown("---")
     difficulty = st.selectbox(
@@ -40,7 +40,7 @@ with st.sidebar:
     st.info("Powered by CrewAI + Gemini")
 
 # ------------------ HEADER ------------------ #
-st.title("🎓 EduAI Learning Assistant")
+st.title("EduAI Learning Assistant")
 st.markdown("Your AI Researcher + AI Writer working together to generate structured study notes.")
 
 st.markdown("---")
