@@ -1,16 +1,20 @@
-# multi_agent.py
-
 import os
+from dotenv import load_dotenv
 
-# Disable telemetry to avoid signal/thread errors
-os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
+load_dotenv()
 
-# Set Gemini API Key (better to store in environment variable)
-os.environ["GOOGLE_API_KEY"] = "AIzaSyAFNoA2TT5PLQM3ZzetvIgIjOPSV4qnH4E"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENAI_API_BASE = os.getenv("OPENAI_API_BASE")
+CREWAI_DISABLE_TELEMETRY = os.getenv("CREWAI_DISABLE_TELEMETRY")
+
+os.environ["OPENAI_API_KEY"] = OPENROUTER_API_KEY
+os.environ["OPENAI_API_BASE"] = OPENAI_API_BASE
+os.environ["CREWAI_DISABLE_TELEMETRY"] = CREWAI_DISABLE_TELEMETRY
 
 from crewai import Agent, Task, Crew, Process
 
-MODEL = "gemini/gemini-2.5-flash"
+
+MODEL = "openrouter/google/gemini-2.0-flash-exp"
 
 
 def run_education_system(topic: str):
