@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eduai-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: eduai
+  template:
+    metadata:
+      labels:
+        app: eduai
+    spec:
+      containers:
+      - name: eduai-container
+        image: siyakusumakar/eduai-app:v1
+        ports:
+        - containerPort: 8501
