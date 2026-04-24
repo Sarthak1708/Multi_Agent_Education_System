@@ -1,74 +1,75 @@
-# multi_agent.py
-from database import create_table, save_note, get_note
 import os
+import json
+import re
+from database import create_table, save_note, get_note
+from image_gen import generate_concept_images
+from groq import Groq
 
-# Disable telemetry to avoid signal/thread errors
-os.environ["CREWAI_DISABLE_TELEMETRY"] = "true"
+os.environ["GROQ_API_KEY"] = "write you api key here"
 
-# Set Gemini API Key (better to store in environment variable)
-os.environ["GOOGLE_API_KEY"] = "enter your our api key"
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-from crewai import Agent, Task, Crew, Process
+def parse_flashcards(raw: str) -> list:
+    try:
+        match = re.search(r'\[.*\]', raw, re.DOTALL)
+        if match:
+            cards = json.loads(match.group())
+            if isinstance(cards, list):
+                return cards
+    except Exception:
+        pass
+    return []
 
-MODEL = "gemini/gemini-2.5-flash"
+def ask_groq(prompt: str) -> str:
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.7,
+        max_tokens=2048,
+    )
+    return response.choices[0].message.content
 
-
-def run_education_system(topic: str):
-
-    # Create table if not exists
+def run_education_system(topic: str, difficulty: str = "Intermediate"):
     create_table()
 
-    # 🔍 Check if topic already exists
-    existing_note = get_note(topic)
+    # Return from cache instantly
+    existing_content, existing_flashcards, existing_images, _ = get_note(topic)
+    if existing_content:
+        return existing_content, existing_flashcards, existing_images
 
-    if existing_note:
-        return existing_note
+    # ── Notes ────────────────────────────────────────────────────────────
+    notes_prompt = f"""
+You are an expert educator. Write structured study notes on: **{topic}** at {difficulty} level.
 
-    # ----------- Run Agents -----------
-    researcher = Agent(
-        role="Education Researcher",
-        goal="Research educational topics",
-        backstory="Expert academic researcher",
-        verbose=False,
-        allow_delegation=False,
-        llm=MODEL
-    )
+Format:
+- Use ## headers for each section
+- Bold all key terms
+- Include: Definition, How it works, Key concepts, Real-world examples, Common mistakes
+- End with a ## Quick Summary section
+- Keep it 400-500 words, clear and student-friendly
+"""
+    notes_content = ask_groq(notes_prompt)
 
-    writer = Agent(
-        role="Education Content Writer",
-        goal="Create structured study notes",
-        backstory="Expert teacher",
-        verbose=False,
-        allow_delegation=False,
-        llm=MODEL
-    )
+    # ── Flashcards ───────────────────────────────────────────────────────
+    flashcard_prompt = f"""
+Based on this topic: {topic} ({difficulty} level)
 
-    research_task = Task(
-        description=f"""
-        Research topic: {topic}
-        Provide definition, explanation, key points, examples, applications
-        """,
-        expected_output="Complete research data",
-        agent=researcher
-    )
+Generate exactly 6 flashcards. Output ONLY a valid JSON array, no extra text, no markdown.
 
-    writing_task = Task(
-        description=f"""
-        Create structured notes on {topic}
-        """,
-        expected_output="Structured study notes",
-        agent=writer
-    )
+[
+  {{
+    "question": "specific question",
+    "answer": "concise answer in 1-2 sentences",
+    "hint": "one word hint"
+  }}
+]
+"""
+    flashcard_raw = ask_groq(flashcard_prompt)
+    flashcards = parse_flashcards(flashcard_raw)
 
-    crew = Crew(
-        agents=[researcher, writer],
-        tasks=[research_task, writing_task],
-        process=Process.sequential
-    )
+    # ── Images ───────────────────────────────────────────────────────────
+    image_paths = generate_concept_images(topic, [])
 
-    result = str(crew.kickoff())
+    save_note(topic, notes_content, flashcards, image_paths, difficulty)
 
-    # 💾 Save to database
-    save_note(topic, result)
-
-    return result
+    return notes_content, flashcards, image_paths
